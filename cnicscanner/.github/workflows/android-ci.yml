@@ -1,0 +1,90 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      run: ./gradlew :cnicscanner:build --stacktrace
+
+    - name: Run tests
+      run: ./gradlew :cnicscanner:test --stacktrace
+
+    - name: Run lint
+      run: ./gradlew :cnicscanner:lint --stacktrace
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: build-artifacts
+        path: cnicscanner/build/outputs/
+
+    - name: Upload lint results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lint-results
+        path: cnicscanner/build/reports/lint-results-*.html
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build library
+      run: ./gradlew :cnicscanner:build
+
+    - name: Publish to GitHub Packages (Optional)
+      run: ./gradlew :cnicscanner:publish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release AAR
+      run: ./gradlew :cnicscanner:assembleRelease
+
+    - name: Upload Release AAR
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: cnicscanner/build/outputs/aar/cnicscanner-release.aar
+        asset_name: cnicscanner-${{ github.event.release.tag_name }}.aar
+        asset_content_type: application/vnd.android.package-archive
