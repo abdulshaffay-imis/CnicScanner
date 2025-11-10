@@ -7,32 +7,4 @@
     <!-- For Android 12 and below -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
         android:maxSdkVersion="32" />
-    
-    <!-- Declare camera feature (optional) -->
-    <uses-feature 
-        android:name="android.hardware.camera" 
-        android:required="false" />
-    <uses-feature 
-        android:name="android.hardware.camera.autofocus" 
-        android:required="false" />
-    
-    <application>
-        <!-- Sample Activity for demonstrating CNIC Scanner -->
-        <activity
-            android:name="com.sspa.cnicscanner.sample.SampleCnicScannerActivity"
-            android:exported="true"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar"
-            android:screenOrientation="portrait">
-            <!-- Intent filter to make this the launcher activity -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-        <!-- ML Kit Document Scanner metadata -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr,document_scanner" />
-    </application>
 </manifest>

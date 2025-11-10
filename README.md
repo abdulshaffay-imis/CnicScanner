@@ -56,7 +56,7 @@ Add the dependency to your app's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.abdulshaffay-imis:CnicScanner:1.1.0")
+    implementation("com.github.abdulshaffay-imis:CnicScanner:1.1.1")
 }
 ```
 
