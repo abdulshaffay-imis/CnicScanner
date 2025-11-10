@@ -8,6 +8,9 @@ data class CnicEntity(
     /** CNIC number (e.g., 12345-6789012-3) */
     var cnic: String = "",
     
+    /** Card type (e.g., "National Identity Card") */
+    var cardType: String = "",
+    
     /** Cardholder's name */
     var name: String = "",
     
@@ -57,7 +60,7 @@ data class CnicEntity(
     }
 
     override fun toString(): String {
-        return "CnicEntity(number='$cnic', name='$name', dob='$date_of_birth', " +
+        return "CnicEntity(number='$cnic', cardType='$cardType', name='$name', dob='$date_of_birth', " +
                 "issue='$cnic_issue_date', expiry='$cnic_expiry', " +
                 "present='${present_address.take(12)}', permanent='${permanent_address.take(12)}', " +
                 "frontImage=${cnic_front != null}, backImage=${cnic_back != null})"

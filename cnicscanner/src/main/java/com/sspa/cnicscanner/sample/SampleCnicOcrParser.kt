@@ -19,6 +19,16 @@ class SampleCnicOcrParser : CnicOcrParser {
         // Date patterns: DD/MM/YYYY or DD-MM-YYYY
         private val DATE_PATTERN = Regex("""(\d{2}[/-]\d{2}[/-]\d{4})""")
         
+        // Card type label
+        private const val CARD_TYPE_LABEL = "National Identity Card"
+        
+        // Flexible pattern for "National Identity Card" to handle OCR errors
+        // Handles: spaces, missing letters, character substitutions (l/I, 0/O, etc.)
+        private val CARD_TYPE_PATTERN = Regex(
+            """(?i)nat[io0]{0,2}na[l1i]{0,2}\s*[il1]{0,2}d[e3]{0,2}nt[il1]{0,2}ty\s*[c©]{0,2}ard""",
+            RegexOption.IGNORE_CASE
+        )
+        
         // Common labels on CNIC
         private const val NAME_LABEL = "Name"
         private const val FATHER_NAME_LABEL = "Father"
@@ -49,6 +59,21 @@ class SampleCnicOcrParser : CnicOcrParser {
     
     private fun parseFrontSide(ocrText: String, entity: CnicEntity) {
         val lines = ocrText.lines().map { it.trim() }
+        
+        // Extract Card Type using flexible pattern matching
+        // Remove all spaces from OCR text for better matching
+        val cleanedText = ocrText.replace("\\s+".toRegex(), " ")
+        
+        // Try regex pattern first
+        if (CARD_TYPE_PATTERN.containsMatchIn(cleanedText)) {
+            entity.cardType = CARD_TYPE_LABEL
+        } else {
+            // Fallback: Use similarity matching for broken text
+            val cardTypeFound = detectCardTypeWithSimilarity(cleanedText)
+            if (cardTypeFound) {
+                entity.cardType = CARD_TYPE_LABEL
+            }
+        }
         
         // Extract CNIC number
         CNIC_PATTERN.find(ocrText)?.let {
@@ -213,5 +238,36 @@ class SampleCnicOcrParser : CnicOcrParser {
         }
         
         return addressLines.joinToString(", ")
+    }
+    
+    /**
+     * Detect "National Identity Card" with similarity matching
+     * Handles OCR errors like: "Nationa Ldenity ard", "National ldentity Card", etc.
+     */
+    private fun detectCardTypeWithSimilarity(text: String): Boolean {
+        // Key words that should appear in some form
+        val keywords = listOf("nation", "identity", "card")
+        val normalizedText = text.lowercase().replace("\\s+".toRegex(), "")
+        
+        // Check if at least 2 out of 3 keywords are present (with typo tolerance)
+        var matchCount = 0
+        
+        // Check for "nation" variants (nat, natio, nationa, national)
+        if (normalizedText.contains(Regex("nat[io0]{0,4}na[l1]{0,2}"))) {
+            matchCount++
+        }
+        
+        // Check for "identity" variants (identit, identity, ldentity, etc.)
+        if (normalizedText.contains(Regex("[il1]{0,2}d[e3]{0,2}nt[il1]{0,2}ty"))) {
+            matchCount++
+        }
+        
+        // Check for "card" variants (card, ard, cad, etc.)
+        if (normalizedText.contains(Regex("[c©]{0,1}[ao0]{0,1}r{0,1}d"))) {
+            matchCount++
+        }
+        
+        // If at least 2 keywords match, consider it valid
+        return matchCount >= 2
     }
 }

@@ -75,6 +75,7 @@ class CnicScanner(
             // For back scan, only reset text data but keep front image
             cnicDetails = cnicDetails.copy(
                 cnic = "",
+                cardType = "",
                 name = "",
                 father_name = "",
                 date_of_birth = "",
@@ -287,6 +288,7 @@ class CnicScanner(
                 )
                 cnicDetails = cnicDetails.copy(
                     cnic = if (extractedEntity.cnic.isNotEmpty()) extractedEntity.cnic else cnicDetails.cnic,
+                    cardType = if (extractedEntity.cardType.isNotEmpty()) extractedEntity.cardType else cnicDetails.cardType,
                     name = if (extractedEntity.name.isNotEmpty()) extractedEntity.name else cnicDetails.name,
                     father_name = if (extractedEntity.father_name.isNotEmpty()) extractedEntity.father_name else cnicDetails.father_name,
                     date_of_birth = if (extractedEntity.date_of_birth.isNotEmpty()) extractedEntity.date_of_birth else cnicDetails.date_of_birth,
