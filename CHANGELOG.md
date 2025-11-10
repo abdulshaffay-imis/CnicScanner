@@ -5,6 +5,43 @@ All notable changes to the CNIC Scanner library will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-11-10
+
+### Added
+- New `cardType` field in `CnicEntity` to capture "National Identity Card" text
+- Enhanced OCR parsing with flexible pattern matching for card type detection
+- Similarity-based fallback algorithm for handling OCR misreads and broken text
+  - Handles variations like "Nationa Ldenity ard", "National ldentity Card", etc.
+  - Character substitution tolerance (l/I/1, o/0, c/©, e/3)
+  - Missing or extra spaces handling
+- Complete sample UI implementation:
+  - `SampleCnicScannerScreen` - Jetpack Compose UI with Material 3
+  - `SampleCnicScannerActivity` - Ready-to-use Activity
+  - Front/Back scan selector
+  - Three scan methods: Camera, Gallery, Document Scanner
+  - Real-time display of all extracted fields
+  - Image preview for both CNIC sides
+  - Completion status indicator
+- Jetpack Compose support:
+  - Material 3 components
+  - Coil for image loading
+  - Full Compose integration
+
+### Enhanced
+- Updated `CnicScanner` to preserve `cardType` field during scanning
+- Improved OCR text parsing with better error tolerance
+- Updated `AndroidManifest.xml` with:
+  - Camera and storage permissions
+  - Camera feature declarations
+  - ML Kit metadata configuration
+  - Sample activity declaration
+
+### Technical Details
+- Kotlin: 2.1.0
+- Compose Compiler: 2.1.0
+- Compose BOM: 2024.09.00
+- Coil Compose: 2.5.0
+
 ## [1.0.0] - 2025-10-29
 
 ### Added
