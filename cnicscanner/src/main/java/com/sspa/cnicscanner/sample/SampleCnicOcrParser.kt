@@ -180,15 +180,11 @@ class SampleCnicOcrParser : CnicOcrParser {
             i++
         }
         
-        // Fallback: If gender was not found in the text (often missed by OCR), 
-        // deduce it from the last digit of the CNIC number
-        if (entity.gender.isNullOrEmpty() && !entity.cnic.isNullOrEmpty()) {
-            val cnicClean = entity.cnic!!.replace("-", "")
-            val lastChar = cnicClean.lastOrNull()
-            if (lastChar != null && lastChar.isDigit()) {
-                val digit = lastChar.digitToInt()
-                // In Pakistan, even last digit = Female, odd last digit = Male
-                entity.gender = if (digit % 2 == 0) "Female" else "Male"
+        // Fallback: The CNIC last digit rule is sometimes unreliable if OCR misreads the digit (e.g. 8 as 7).
+        // However, if the text explicitly contains "Husband", the cardholder is a married female.
+        if (entity.gender.isNullOrEmpty()) {
+            if (ocrText.contains("Husband", ignoreCase = true)) {
+                entity.gender = "Female"
             }
         }
     }
