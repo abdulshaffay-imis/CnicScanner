@@ -35,7 +35,8 @@ class SampleCnicOcrParser : CnicOcrParser {
         private const val DOB_LABEL = "Date of Birth"
         private const val ISSUE_DATE_LABEL = "Date of Issue"
         private const val EXPIRY_LABEL = "Date of Expiry"
-        private const val GENDER_LABEL = "Sex"
+        private const val GENDER_LABEL_OLD = "Sex"
+        private const val GENDER_LABEL = "Gender"
         private const val COUNTRY_LABEL = "Country"
         
         // Address labels (on back)
@@ -137,12 +138,28 @@ class SampleCnicOcrParser : CnicOcrParser {
                 }
                 
                 // Gender
-                line.contains(GENDER_LABEL, ignoreCase = true) -> {
-                    when {
-                        line.contains("M", ignoreCase = true) || 
-                        line.contains("Male", ignoreCase = true) -> entity.gender = "Male"
-                        line.contains("F", ignoreCase = true) || 
-                        line.contains("Female", ignoreCase = true) -> entity.gender = "Female"
+                line.contains(GENDER_LABEL, ignoreCase = true) || line.contains(GENDER_LABEL_OLD, ignoreCase = true) -> {
+                    val maleRegex = Regex("""\b(M|Male)\b""", RegexOption.IGNORE_CASE)
+                    val femaleRegex = Regex("""\b(F|Female)\b""", RegexOption.IGNORE_CASE)
+                    
+                    if (maleRegex.containsMatchIn(line)) {
+                        entity.gender = "Male"
+                    } else if (femaleRegex.containsMatchIn(line)) {
+                        entity.gender = "Female"
+                    } else {
+                        // Look ahead up to 2 lines for the gender value
+                        for (j in 1..2) {
+                            if (i + j < lines.size) {
+                                val nextLine = lines[i + j]
+                                if (maleRegex.containsMatchIn(nextLine)) {
+                                    entity.gender = "Male"
+                                    break
+                                } else if (femaleRegex.containsMatchIn(nextLine)) {
+                                    entity.gender = "Female"
+                                    break
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -161,6 +178,18 @@ class SampleCnicOcrParser : CnicOcrParser {
             }
             
             i++
+        }
+        
+        // Fallback: If gender was not found in the text (often missed by OCR), 
+        // deduce it from the last digit of the CNIC number
+        if (entity.gender.isNullOrEmpty() && !entity.cnic.isNullOrEmpty()) {
+            val cnicClean = entity.cnic!!.replace("-", "")
+            val lastChar = cnicClean.lastOrNull()
+            if (lastChar != null && lastChar.isDigit()) {
+                val digit = lastChar.digitToInt()
+                // In Pakistan, even last digit = Female, odd last digit = Male
+                entity.gender = if (digit % 2 == 0) "Female" else "Male"
+            }
         }
     }
     
