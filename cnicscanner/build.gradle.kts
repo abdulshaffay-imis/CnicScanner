@@ -65,7 +65,7 @@ afterEvaluate {
                 
                 groupId = "com.sspa"
                 artifactId = "cnicscanner"
-                version = "1.1.1"
+                version = "1.1.2"
                 
                 pom {
                     name.set("CNIC Scanner")
