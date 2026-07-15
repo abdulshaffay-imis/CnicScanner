@@ -8,6 +8,11 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.exifinterface.media.ExifInterface
+import java.io.File
+import java.io.FileOutputStream
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -249,32 +254,79 @@ class CnicScanner(
         }
 
     private fun processCapturedImage(imageUri: Uri, callback: (CnicEntity) -> Unit) {
-        try {
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            if (bitmap == null) {
-                Log.e(TAG, "Failed to decode bitmap from URI: $imageUri")
-                callback(cnicDetails)
-                return
-            }
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
+    try {
+        val inputStream = context.contentResolver.openInputStream(imageUri)
+        var bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream?.close()
 
-            Log.d(TAG, "Processing image from URI: $imageUri")
-
-            // Store image to proper field based on scan side
-            if (isBackScan) {
-                cnicDetails.cnic_back = imageUri.toString()
-            } else {
-                cnicDetails.cnic_front = imageUri.toString()
-            }
-
-            performOCR(inputImage, callback)
-            inputStream?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error processing image: ${e.message}")
+        if (bitmap == null) {
+            Log.e(TAG, "Failed to decode bitmap from URI: $imageUri")
             callback(cnicDetails)
+            return
         }
+
+        // Correct orientation based on EXIF tag (camera/gallery images are often
+        // stored in sensor orientation with a rotation flag, not pre-rotated pixels)
+        val rotationDegrees = getExifRotationDegrees(imageUri)
+        bitmap = rotateBitmapIfNeeded(bitmap, rotationDegrees)
+
+        // Save the corrected bitmap so OCR *and* whatever displays cnic_front/cnic_back
+        // later both see the same upright image, instead of the original (possibly rotated) URI
+        val correctedUri = saveBitmapToCache(bitmap, if (isBackScan) "cnic_back" else "cnic_front")
+
+        val inputImage = InputImage.fromBitmap(bitmap, 0)
+
+        Log.d(TAG, "Processing image from URI: $imageUri (corrected rotation: ${rotationDegrees}°)")
+
+        if (isBackScan) {
+            cnicDetails.cnic_back = correctedUri.toString()
+        } else {
+            cnicDetails.cnic_front = correctedUri.toString()
+        }
+
+        performOCR(inputImage, callback)
+    } catch (e: Exception) {
+        Log.e(TAG, "Error processing image: ${e.message}")
+        callback(cnicDetails)
     }
+}
+
+/**
+ * Reads the EXIF orientation tag and converts it to degrees of rotation needed
+ * to display the image upright.
+ */
+private fun getExifRotationDegrees(uri: Uri): Int {
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            val exif = ExifInterface(stream)
+            when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+        } ?: 0
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed reading EXIF orientation: ${e.message}")
+        0
+    }
+}
+
+private fun rotateBitmapIfNeeded(bitmap: Bitmap, degrees: Int): Bitmap {
+    if (degrees == 0) return bitmap
+    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+    val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    if (rotated != bitmap) bitmap.recycle()
+    return rotated
+}
+
+private fun saveBitmapToCache(bitmap: Bitmap, prefix: String): Uri {
+    val file = File(context.cacheDir, "${prefix}_${System.currentTimeMillis()}.jpg")
+    FileOutputStream(file).use { out ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+    }
+    return Uri.fromFile(file)
+}
 
     private fun performOCR(inputImage: InputImage, callback: (CnicEntity) -> Unit) {
         textRecognizer.process(inputImage)
