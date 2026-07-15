@@ -48,12 +48,19 @@ dependencies {
     
     // ML Kit Document Scanner
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+
+    // EXIF handling to correct captured image orientation
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
     
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }
+
+val libraryVersion = (project.findProperty("version") as? String)
+    ?: (project.findProperty("VERSION_NAME") as? String)
+    ?: "1.1.4"
 
 afterEvaluate {
     publishing {
@@ -63,7 +70,7 @@ afterEvaluate {
                 
                 groupId = "com.sspa"
                 artifactId = "cnicscanner"
-                version = "1.1.1"
+                version = libraryVersion
                 
                 pom {
                     name.set("CNIC Scanner")

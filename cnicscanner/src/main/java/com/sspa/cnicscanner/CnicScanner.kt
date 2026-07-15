@@ -3,11 +3,16 @@ package com.sspa.cnicscanner
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.exifinterface.media.ExifInterface
+import java.io.File
+import java.io.FileOutputStream
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -250,8 +255,7 @@ class CnicScanner(
 
     private fun processCapturedImage(imageUri: Uri, callback: (CnicEntity) -> Unit) {
         try {
-            val inputStream = context.contentResolver.openInputStream(imageUri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
+            val bitmap = loadCorrectedBitmap(imageUri)
             if (bitmap == null) {
                 Log.e(TAG, "Failed to decode bitmap from URI: $imageUri")
                 callback(cnicDetails)
@@ -261,19 +265,91 @@ class CnicScanner(
 
             Log.d(TAG, "Processing image from URI: $imageUri")
 
-            // Store image to proper field based on scan side
+            // Store the EXIF-corrected image URI so it matches the on-screen preview
+            val correctedUri = saveBitmapToCache(bitmap, if (isBackScan) "back" else "front")
             if (isBackScan) {
-                cnicDetails.cnic_back = imageUri.toString()
+                cnicDetails.cnic_back = correctedUri.toString()
             } else {
-                cnicDetails.cnic_front = imageUri.toString()
+                cnicDetails.cnic_front = correctedUri.toString()
             }
 
             performOCR(inputImage, callback)
-            inputStream?.close()
+            bitmap.recycle()
         } catch (e: Exception) {
             Log.e(TAG, "Error processing image: ${e.message}")
             callback(cnicDetails)
         }
+    }
+
+    /**
+     * Decodes the bitmap from the given URI and applies the EXIF orientation so the
+     * resulting image matches the orientation shown in the camera preview.
+     */
+    private fun loadCorrectedBitmap(uri: Uri): Bitmap? {
+        val exifOrientation = try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                ExifInterface(stream).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+            } ?: ExifInterface.ORIENTATION_NORMAL
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read EXIF orientation: ${e.message}")
+            ExifInterface.ORIENTATION_NORMAL
+        }
+
+        val raw = try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode bitmap: ${e.message}")
+            null
+        } ?: return null
+
+        if (exifOrientation == ExifInterface.ORIENTATION_NORMAL) {
+            return raw
+        }
+
+        val matrix = Matrix()
+        when (exifOrientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.preScale(-1f, 1f)
+                matrix.postRotate(90f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.preScale(-1f, 1f)
+                matrix.postRotate(270f)
+            }
+            else -> return raw
+        }
+
+        return try {
+            val corrected = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
+            raw.recycle()
+            corrected
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to apply EXIF orientation: ${e.message}")
+            raw
+        }
+    }
+
+    /**
+     * Persists the (orientation-corrected) bitmap to the app cache and returns a file URI
+     * pointing to it, so the returned image is physically upright regardless of how the
+     * consuming app loads it.
+     */
+    private fun saveBitmapToCache(bitmap: Bitmap, prefix: String): Uri {
+        val file = File(context.cacheDir, "cnic_${prefix}_${UUID.randomUUID()}.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        return Uri.fromFile(file)
     }
 
     private fun performOCR(inputImage: InputImage, callback: (CnicEntity) -> Unit) {
