@@ -66,3 +66,12 @@ data class CnicEntity(
                 "frontImage=${cnic_front != null}, backImage=${cnic_back != null})"
     }
 }
+
+data class BFormEntity (
+    var ChildCnic: String = ""
+) {
+    fun isComplete(): Boolean {
+        return ChildCnic.isNotEmpty()
+    }
+
+}

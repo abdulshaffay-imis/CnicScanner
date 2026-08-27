@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "CnicScanner"
 include(":cnicscanner")
+//include(":app")
