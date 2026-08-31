@@ -62,28 +62,35 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 from(components["release"])
-                
-                groupId = "com.sspa"
-                artifactId = "cnicscanner"
-                version = "1.1.6"
-                
+
+                // Coordinates are supplied automatically by JitPack:
+                //   groupId   = com.github.abdulshaffay-imis
+                //   artifactId = CnicScanner
+                //   version    = <git tag>
+
                 pom {
                     name.set("CNIC Scanner")
                     description.set("Android library for scanning Pakistani CNIC cards using ML Kit")
-                    url.set("https://github.com/IMIS-Project/cnicscanner")
-                    
+                    url.set("https://github.com/abdulshaffay-imis/CnicScanner")
+
                     licenses {
                         license {
                             name.set("The Apache License, Version 2.0")
                             url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
                         }
                     }
-                    
+
                     developers {
                         developer {
-                            id.set("sspa")
-                            name.set("SSPA Development Team")
+                            id.set("abdulshaffay-imis")
+                            name.set("Abdul Shaffay")
                         }
+                    }
+
+                    scm {
+                        url.set("https://github.com/abdulshaffay-imis/CnicScanner")
+                        connection.set("scm:git:git://github.com/abdulshaffay-imis/CnicScanner.git")
+                        developerConnection.set("scm:git:ssh://git@github.com/abdulshaffay-imis/CnicScanner.git")
                     }
                 }
             }
