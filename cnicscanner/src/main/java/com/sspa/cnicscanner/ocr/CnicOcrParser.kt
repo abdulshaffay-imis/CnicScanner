@@ -10,7 +10,7 @@ import com.sspa.cnicscanner.entities.CnicEntity
 interface CnicOcrParser {
     /**
      * Parse OCR text and extract CNIC information
-     * 
+     *
      * @param ocrText The raw text recognized from the CNIC image
      * @param existing Existing CNIC entity to merge data with (optional)
      * @param isBackScan True if scanning the back of the CNIC, false for front
